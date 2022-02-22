@@ -1,0 +1,223 @@
+.Model small
+.Stack 200H ;rezerv in stiva 512 octeti
+.Data ; segmentul de date, aici declaram variabilele
+
+Mesaj1 DB 'x=$'
+Mesaj2 DB 'y=$'
+Mesaj3 DB 'z=$'
+MesajFinal DB 'Rezultatul expresiei e=x-2*y-|z-1| este:$'
+x DB ?
+y DB ?
+z DB ?
+
+
+.Code ; segmentul de cod, unde vom memora instructiunile
+
+ProgramStart:
+mov bx,@data ; cautam loc unde sa stocam proiectul in bx, nu putem face direct in dx
+mov ds,bx
+
+;---------------Citirea datelor------------------------------------------
+
+mov dx, offset Mesaj1 ; ma plimb in dx pana gasesc Mesaj1
+mov ah,09 ; inserez o intrerupere cu codul 09, ce scrie un string
+int 21h ; invoc tabela de intreruperi
+
+call citirex ; apelam procedura pt citirea lui x
+
+mov dx, offset Mesaj2 ; ma plimb in dx pana gasesc Mesaj1
+mov ah,09 ; inserez o intrerupere cu codul 09, ce scrie un string
+int 21h ; invoc tabela de intreruperi
+
+call citirey ; apelam procedura pt citirea lui y
+
+mov dx, offset Mesaj3 ; ma plimb in dx pana gasesc Mesaj1
+mov ah,09 ; inserez o intrerupere cu codul 09, ce scrie un string
+int 21h ; invoc tabela de intreruperi
+
+call citirez ; apelam procedura pt citirea lui z
+
+;---------------Calcularea expresiei--------------------------------------
+
+mov bl,2 ; pregatim inmultirea lui y cu 2
+mov al,y ; mutam y in registrul in al 
+mul bl ; instructiunea mul poate lucra doar cu ax/al/ah
+	   ; rezultatul este al=2*al , deci continutul lui al este 2*y
+
+; pregatim urmatorul pas, calcularea lui x-2*y
+mov bl,al ; bl=2*y
+mov bh, x ; bh=x
+
+sub bh,bl ; bh=bh-bl deci bh=x-2*y
+
+
+;pregatim urmatorul pas 
+
+mov ah,z; mutam z in ah
+sub ah,1 ; calculam z-1
+
+cmp ah,0
+jl inmulteste; daca ah<0, sare la inmulteste
+
+;daca ah>= 0 continua programul
+cmp ah,0
+jge skip ; daca ah>=0, sare la skip
+
+inmulteste:
+mov al,ah ; al=ah deci al=z-1
+mov bl, -1 ; rezultatul este al=(-1)*al
+sub bh,al ; bh=bh-al => bh=x-2*y-|z-1|
+
+skip: 
+sub bh,ah ; bh=x-2*y-|z-1|
+
+
+mov dx, offset MesajFinal ; ma plimb in dx pana gasesc MesajFinal
+mov ah,09 ; inserez o intrerupere cu codul 09, ce scrie un string
+int 21h ; invoc tabela de intreruperi
+
+;-------------------Afisarea rezultatului la ecran---------------------
+
+afisare:
+;nr initial trb impartit la 10 
+mov al,bh ; al=bh => al=x-2*y-|z-1|
+mov dl,10 ; pregatim impartirea la 10
+div dl; deoarece impartitorul este pe 8B (numere de tip DB)
+	  ; catul impartirii va fi in al=al/10
+	  ; restul impartirii va fi in ah=al%10
+cmp al,0 ; daca al=0, adaugam in stiva
+je adauga
+mov bh,al
+mov al,0
+push ax
+mov ah,0
+jmp afisare
+
+adauga:
+push ax; adaugam in stiva
+jmp scoateStiva
+
+scoateStiva:
+pop ax ; scoatem din stiva
+mov dl,ah ; punem in dl caracterul pe care dorim sa il afisam
+add dl,30H; pentru a transforma in caracter
+mov ah,02 ; inserez o intrerupere cu codul 02, ce scrie un caracter la ecran
+int 21H ; invoc tabela de intreruperi
+
+mov ah, 4cH; inserez o intrerupere cu codul 4c, ce iese din program
+int 21H ; invoc tabela de intreruperi
+
+
+; ----------------- Procedura pentru citirea lui x de la tastatura---------------
+
+citirex:
+
+;citim caracter
+mov ah,01H; Intrerupere DOS ce citeste caracter
+int 21H; Invocam tabela de intreruperi
+
+mov ah,0
+Reia1:
+
+;convertesc caracterul in cifra
+sub al,30H
+
+;salvez valoarea al pentru ca ea se va pierde
+mov bl,al
+
+;pregatesc inmultirea
+mov dl,x
+mov al,10
+mul dl
+add al,bl
+mov x,al; numarul citit va fi stocat la sfarsit in x
+
+
+;citim caracter
+mov ah,01H; inserez o intrerupere cu codul 01, ce citeste caracter
+int 21H; invoc tabela de intreruperi
+
+mov ah,0
+
+cmp al,0dH
+jg Reia1 ; daca caracterul citit e enter(adica am terminat de citit numarul) procedura se opreste, altfel reluam tot procesul de la eticheta Reia
+
+
+ret
+
+
+; ----------------- Procedura pentru citirea lui y de la tastatura---------------
+
+citirey:
+
+;citim caracter
+mov ah,01H; Intrerupere DOS ce citeste caracter
+int 21H; Invocam tabela de intreruperi
+
+mov ah,0
+Reia2:
+
+;convertesc caracterul in cifra
+sub al,30H
+
+;salvez valoarea al pentru ca ea se va pierde
+mov bl,al
+
+;pregatesc inmultirea
+mov dl,y
+mov al,10
+mul dl
+add al,bl
+mov y,al; numarul citit va fi stocat la sfarsit in x
+
+
+;citim caracter
+mov ah,01H; inserez o intrerupere cu codul 01, ce citeste caracter
+int 21H; invoc tabela de intreruperi
+
+mov ah,0
+
+cmp al,0dH
+jg Reia2 ; daca caracterul citit e enter(adica am terminat de citit numarul) procedura se opreste, altfel reluam tot procesul de la eticheta Reia
+
+
+ret
+
+
+; ----------------- Procedura pentru citirea lui z de la tastatura---------------
+
+citirez:
+
+;citim caracter
+mov ah,01H; Intrerupere DOS ce citeste caracter
+int 21H; Invocam tabela de intreruperi
+
+mov ah,0
+Reia3:
+
+;convertesc caracterul in cifra
+sub al,30H
+
+;salvez valoarea al pentru ca ea se va pierde
+mov bl,al
+
+;pregatesc inmultirea
+mov dl,z
+mov al,10
+mul dl
+add al,bl
+mov z,al; numarul citit va fi stocat la sfarsit in z
+
+
+;citim caracter
+mov ah,01H; inserez o intrerupere cu codul 01, ce citeste caracter
+int 21H; invoc tabela de intreruperi
+
+mov ah,0
+
+cmp al,0dH
+jg Reia3 ; daca caracterul citit e enter(adica am terminat de citit numarul) procedura se opreste, altfel reluam tot procesul de la eticheta Reia
+
+
+ret
+END ProgramStart
